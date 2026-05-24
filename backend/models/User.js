@@ -94,11 +94,11 @@ const userSchema = new mongoose.Schema(
 
 // Virtual: follower count
 userSchema.virtual('followerCount').get(function () {
-  return this.followers.length;
+  return this.followers?.length || 0;
 });
 
 userSchema.virtual('followingCount').get(function () {
-  return this.following.length;
+  return this.following?.length || 0;
 });
 
 // Hash password before saving
