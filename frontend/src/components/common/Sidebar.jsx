@@ -1,75 +1,100 @@
-import { NavLink } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { Home, Compass, BookOpen, MessageSquare, Bell, Bookmark, Settings, PlusSquare } from 'lucide-react';
-import Avatar from './Avatar';
-import CreatePostModal from '../posts/CreatePostModal';
-import { useState } from 'react';
+
+import { useState } from "react";
+import { NavLink } from "react-router-dom";
+import { useSelector } from "react-redux";
+import {
+  Home,
+  Compass,
+  BookOpen,
+  MessageSquare,
+  Bell,
+  Bookmark,
+  Settings,
+  PlusSquare,
+} from "lucide-react";
+
+import Avatar from "./Avatar";
+import CreatePostModal from "../posts/CreatePostModal";
 
 const links = [
-  { to: '/', icon: Home, label: 'Home', end: true },
-  { to: '/explore', icon: Compass, label: 'Explore' },
-  { to: '/notes', icon: BookOpen, label: 'Study Notes' },
-  { to: '/chat', icon: MessageSquare, label: 'Messages' },
-  { to: '/notifications', icon: Bell, label: 'Notifications' },
-  { to: '/saved', icon: Bookmark, label: 'Saved' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: "/", icon: Home, label: "Home", end: true },
+  { to: "/explore", icon: Compass, label: "Explore" },
+  { to: "/notes", icon: BookOpen, label: "Study Notes" },
+  { to: "/chat", icon: MessageSquare, label: "Messages" },
+  { to: "/notifications", icon: Bell, label: "Notifications" },
+  { to: "/saved", icon: Bookmark, label: "Saved" },
+  { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
 export default function Sidebar() {
-  const { user } = useSelector((s) => s.auth);
-  const { unreadCount } = useSelector((s) => s.notifications);
+  const user = useSelector((state) => state.auth.user);
+  const unreadCount = useSelector(
+    (state) => state.notifications.unreadCount
+  );
+
   const [showCreate, setShowCreate] = useState(false);
 
   return (
-    <div className="card p-4 space-y-1">
-      {/* Profile mini */}
+    <div className="card space-y-1 p-4">
+      {/* Profile */}
       <NavLink
         to={`/profile/${user?.username}`}
-        className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors mb-2"
+        className="mb-2 flex items-center gap-3 rounded-lg p-3 hover:bg-slate-50 dark:hover:bg-slate-800"
       >
         <Avatar user={user} size="sm" />
+
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{user?.name}</p>
-          <p className="text-xs text-slate-500 truncate">@{user?.username}</p>
+          <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+            {user?.name}
+          </p>
+
+          <p className="truncate text-xs text-slate-500">
+            @{user?.username}
+          </p>
         </div>
       </NavLink>
 
-      <hr className="border-slate-200 dark:border-slate-700 mb-2" />
+      <div className="my-2 border-t border-slate-200 dark:border-slate-700" />
 
+      {/* Navigation */}
       {links.map(({ to, icon: Icon, label, end }) => (
         <NavLink
           key={to}
           to={to}
           end={end}
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 relative ${
+            `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium ${
               isActive
-                ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100'
+                ? "bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
             }`
           }
         >
-          <Icon className="w-5 h-5 shrink-0" />
-          {label}
-          {label === 'Notifications' && unreadCount > 0 && (
-            <span className="ml-auto w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-              {unreadCount > 9 ? '9+' : unreadCount}
+          <Icon className="h-5 w-5" />
+
+          <span>{label}</span>
+
+          {label === "Notifications" && unreadCount > 0 && (
+            <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+              {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
         </NavLink>
       ))}
 
-      <div className="pt-2">
-        <button
-          onClick={() => setShowCreate(true)}
-          className="btn-primary w-full justify-center"
-        >
-          <PlusSquare className="w-4 h-4" />
-          Create Post
-        </button>
-      </div>
+      {/* Create Post */}
+      <button
+        type="button"
+        onClick={() => setShowCreate(true)}
+        className="btn-primary mt-3 w-full justify-center"
+      >
+        <PlusSquare className="h-4 w-4" />
+        Create Post
+      </button>
 
-      {showCreate && <CreatePostModal onClose={() => setShowCreate(false)} />}
+      {showCreate && (
+        <CreatePostModal onClose={() => setShowCreate(false)} />
+      )}
     </div>
   );
 }
