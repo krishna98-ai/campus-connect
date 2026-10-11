@@ -1,6 +1,6 @@
-const cloudinary = require('cloudinary').v2;
-const CloudinaryStorage = require("multer-storage-cloudinary");
-const multer = require('multer');
+import { v2 as cloudinary } from "cloudinary";
+import CloudinaryStorage  from "multer-storage-cloudinary";
+import multer from "multer";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -8,76 +8,69 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Image storage for posts and avatars
+// Storage for post images
 const imageStorage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: 'campus-connect/images',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-    transformation: [{ width: 1200, height: 1200, crop: 'limit', quality: 'auto' }],
+    folder: "campus-connect/images",
+    allowed_formats: ["jpg", "jpeg", "png", "gif", "webp"],
+    transformation: [
+      { width: 1200, height: 1200, crop: "limit", quality: "auto" },
+    ],
   },
 });
 
-// Avatar storage (smaller, square)
+// Storage for profile pictures
 const avatarStorage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: 'campus-connect/avatars',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-    transformation: [{ width: 400, height: 400, crop: 'fill', quality: 'auto' }],
+    folder: "campus-connect/avatars",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    transformation: [
+      { width: 400, height: 400, crop: "fill", quality: "auto" },
+    ],
   },
 });
 
-// Notes/PDF storage
+// Storage for notes and PDFs
 const notesStorage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: 'campus-connect/notes',
-    allowed_formats: ['pdf', 'jpg', 'jpeg', 'png'],
-    resource_type: 'auto',
+    folder: "campus-connect/notes",
+    allowed_formats: ["pdf", "jpg", "jpeg", "png"],
+    resource_type: "auto",
   },
 });
 
 const uploadImage = multer({
   storage: imageStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'), false);
-    }
+    cb(null, file.mimetype.startsWith("image/"));
   },
 });
 
 const uploadAvatar = multer({
   storage: avatarStorage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'), false);
-    }
+    cb(null, file.mimetype.startsWith("image/"));
   },
 });
 
 const uploadNotes = multer({
   storage: notesStorage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-    if (allowed.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF and image files are allowed for notes'), false);
-    }
+    const allowedTypes = [
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+      "image/jpg",
+    ];
+
+    cb(null, allowedTypes.includes(file.mimetype));
   },
 });
 
-module.exports = {
-  cloudinary,
-  uploadImage,
-  uploadAvatar,
-  uploadNotes,
-};
+export { cloudinary, uploadImage, uploadAvatar, uploadNotes };

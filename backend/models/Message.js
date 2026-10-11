@@ -1,22 +1,22 @@
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema(
   {
     conversation: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Conversation',
+      ref: "Conversation",
       required: true,
       index: true,
     },
     sender: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     text: {
       type: String,
       trim: true,
-      maxlength: [2000, 'Message cannot exceed 2000 characters'],
+      maxlength: [2000, "Message cannot exceed 2000 characters"],
     },
     image: {
       public_id: String,
@@ -26,7 +26,7 @@ const messageSchema = new mongoose.Schema(
     readAt: Date,
     isDeleted: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 messageSchema.index({ conversation: 1, createdAt: -1 });
@@ -36,13 +36,13 @@ const conversationSchema = new mongoose.Schema(
     participants: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        ref: "User",
         required: true,
       },
     ],
     lastMessage: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Message',
+      ref: "Message",
     },
     lastMessageAt: {
       type: Date,
@@ -54,13 +54,13 @@ const conversationSchema = new mongoose.Schema(
       default: {},
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 conversationSchema.index({ participants: 1 });
 conversationSchema.index({ lastMessageAt: -1 });
 
-const Message = mongoose.model('Message', messageSchema);
-const Conversation = mongoose.model('Conversation', conversationSchema);
+const Message = mongoose.model("Message", messageSchema);
+const Conversation = mongoose.model("Conversation", conversationSchema);
 
-module.exports = { Message, Conversation };
+export { Message, Conversation };

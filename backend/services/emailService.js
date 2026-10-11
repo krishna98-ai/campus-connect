@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+import nodemailer from "nodemailer";
 
 const createTransporter = () => {
   return nodemailer.createTransport({
@@ -16,15 +16,14 @@ const sendEmail = async ({ to, subject, html, text }) => {
   const transporter = createTransporter();
 
   const mailOptions = {
-    from: `"${process.env.FROM_NAME || 'Campus Connect'}" <${process.env.FROM_EMAIL}>`,
+    from: `"${process.env.FROM_NAME || "Campus Connect"}" <${process.env.FROM_EMAIL}>`,
     to,
     subject,
     html,
     text,
   };
 
-  const info = await transporter.sendMail(mailOptions);
-  return info;
+  return await transporter.sendMail(mailOptions);
 };
 
 const sendPasswordResetEmail = async (email, name, resetUrl) => {
@@ -63,7 +62,7 @@ const sendPasswordResetEmail = async (email, name, resetUrl) => {
 
   return sendEmail({
     to: email,
-    subject: 'Campus Connect - Reset Your Password',
+    subject: "Campus Connect - Reset Your Password",
     html,
     text: `Hi ${name}, reset your password at: ${resetUrl}`,
   });
@@ -99,10 +98,10 @@ const sendWelcomeEmail = async (email, name) => {
 
   return sendEmail({
     to: email,
-    subject: 'Welcome to Campus Connect! 🎓',
+    subject: "Welcome to Campus Connect! 🎓",
     html,
     text: `Hi ${name}, welcome to Campus Connect!`,
   });
 };
 
-module.exports = { sendEmail, sendPasswordResetEmail, sendWelcomeEmail };
+export { sendEmail, sendPasswordResetEmail, sendWelcomeEmail };

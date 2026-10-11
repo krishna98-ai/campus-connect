@@ -1,5 +1,4 @@
-// Standard success response
-exports.sendSuccess = (res, statusCode = 200, message = 'Success', data = {}) => {
+const sendSuccess = (res, statusCode = 200, message = "Success", data = {}) => {
   return res.status(statusCode).json({
     success: true,
     message,
@@ -7,15 +6,19 @@ exports.sendSuccess = (res, statusCode = 200, message = 'Success', data = {}) =>
   });
 };
 
-// Standard error factory
-exports.createError = (message, statusCode = 500) => {
+const createError = (message, statusCode = 500) => {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
 };
 
-// Paginated response
-exports.sendPaginated = (res, statusCode = 200, message = 'Success', data, pagination) => {
+const sendPaginated = (
+  res,
+  statusCode = 200,
+  message = "Success",
+  data,
+  pagination,
+) => {
   return res.status(statusCode).json({
     success: true,
     message,
@@ -23,16 +26,19 @@ exports.sendPaginated = (res, statusCode = 200, message = 'Success', data, pagin
     pagination,
   });
 };
+const getPaginationParams = (query) => {
+  let page = parseInt(query.page) || 1;
+  let limit = parseInt(query.limit) || 10;
 
-// Pagination helper
-exports.getPaginationParams = (query) => {
-  const page = Math.max(1, parseInt(query.page) || 1);
-  const limit = Math.min(50, Math.max(1, parseInt(query.limit) || 10));
+  if (page < 1) page = 1;
+  if (limit < 1) limit = 1;
+  if (limit > 50) limit = 50;
+
   const skip = (page - 1) * limit;
+
   return { page, limit, skip };
 };
-
-exports.buildPaginationMeta = (total, page, limit) => ({
+const buildPaginationMeta = (total, page, limit) => ({
   total,
   page,
   limit,
@@ -40,3 +46,11 @@ exports.buildPaginationMeta = (total, page, limit) => ({
   hasNext: page * limit < total,
   hasPrev: page > 1,
 });
+
+export {
+  sendSuccess,
+  createError,
+  sendPaginated,
+  getPaginationParams,
+  buildPaginationMeta,
+};

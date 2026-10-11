@@ -1,11 +1,18 @@
-const express = require('express');
+import express from "express";
+
+import { protect } from "../middleware/auth.js";
+import {
+  getNotifications,
+  markAsRead,
+  deleteNotification,
+  getUnreadCount,
+} from "../controllers/notificationController.js";
+
 const router = express.Router();
-const { protect } = require('../middleware/auth');
-const { getNotifications, markAsRead, deleteNotification, getUnreadCount } = require('../controllers/notificationController');
 
-router.get('/', protect, getNotifications);
-router.get('/unread-count', protect, getUnreadCount);
-router.put('/read', protect, markAsRead);
-router.delete('/:id', protect, deleteNotification);
+router.get("/", protect, getNotifications);
+router.get("/unread-count", protect, getUnreadCount);
+router.put("/read", protect, markAsRead);
+router.delete("/:id", protect, deleteNotification);
 
-module.exports = router;
+export default router;
