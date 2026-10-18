@@ -6,7 +6,7 @@ import { getIO, getOnlineUsers }  from '../socket/index.js';
 // @desc    Get or create conversation between two users
 // @route   POST /api/chat/conversations
 // @access  Private
-export const getOrCreateConversation = async (req, res, next) => {w
+export const getOrCreateConversation = async (req, res, next) => {
   try {
     const { userId } = req.body;
     if (!userId) return next(createError('userId is required', 400));
