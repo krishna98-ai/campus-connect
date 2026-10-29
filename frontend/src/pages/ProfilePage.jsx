@@ -22,6 +22,9 @@ export default function ProfilePage() {
   const [following, setFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [tab, setTab] = useState('posts');
+  const [showConnections, setShowConnections] = useState(false);
+  const [connectionType, setConnectionType] = useState("followers");
+  const [connections, setConnections] = useState([]);
 
   const isOwnProfile = currentUser?.username === username;
 
@@ -68,6 +71,14 @@ export default function ProfilePage() {
       toast.error('Could not start chat');
     }
   };
+const openConnections = (type) => {
+  setConnectionType(type);
+
+  const list = type === "followers" ? profile.followers : profile.following;
+
+  setConnections(list || []);
+  setShowConnections(true);
+};
 
   if (loading) return <div className="space-y-4 max-w-2xl"><ProfileSkeleton /></div>;
   if (!profile) return null;
@@ -81,7 +92,11 @@ export default function ProfilePage() {
 
         <div className="px-6 pb-6">
           <div className="flex items-end justify-between -mt-12 mb-4">
-            <Avatar user={profile} size="xl" className="ring-4 ring-white dark:ring-slate-800" />
+            <Avatar
+              user={profile}
+              size="xl"
+              className="ring-4 ring-white dark:ring-slate-800"
+            />
             <div className="flex gap-2 mt-2">
               {isOwnProfile ? (
                 <Link to="/settings" className="btn-secondary gap-2">
@@ -89,21 +104,41 @@ export default function ProfilePage() {
                 </Link>
               ) : (
                 <>
-                  <button onClick={handleMessage} className="btn-secondary gap-2">
+                  <button
+                    onClick={handleMessage}
+                    className="btn-secondary gap-2"
+                  >
                     <MessageSquare className="w-4 h-4" /> Message
                   </button>
-                  <button onClick={handleFollow} className={`gap-2 ${following ? 'btn-secondary' : 'btn-primary'}`}>
-                    {following ? <><UserCheck className="w-4 h-4" /> Following</> : <><UserPlus className="w-4 h-4" /> Follow</>}
+                  <button
+                    onClick={handleFollow}
+                    className={`gap-2 ${following ? "btn-secondary" : "btn-primary"}`}
+                  >
+                    {following ? (
+                      <>
+                        <UserCheck className="w-4 h-4" /> Following
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4" /> Follow
+                      </>
+                    )}
                   </button>
                 </>
               )}
             </div>
           </div>
 
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">{profile.name}</h1>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">
+            {profile.name}
+          </h1>
           <p className="text-slate-500 text-sm">@{profile.username}</p>
 
-          {profile.bio && <p className="mt-3 text-slate-700 dark:text-slate-300 text-sm leading-relaxed">{profile.bio}</p>}
+          {profile.bio && (
+            <p className="mt-3 text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+              {profile.bio}
+            </p>
+          )}
 
           <div className="flex flex-wrap gap-3 mt-3 text-xs text-slate-500">
             {profile.college && (
@@ -133,15 +168,25 @@ export default function ProfilePage() {
           {/* Stats */}
           <div className="flex gap-6 mt-5 pt-4 border-t border-slate-100 dark:border-slate-700">
             {[
-              { label: 'Posts', value: stats.postsCount ?? posts.length },
-              { label: 'Notes', value: stats.notesCount ?? 0 },
-              { label: 'Followers', value: followerCount },
-              { label: 'Following', value: profile.following?.length ?? 0 },
+              { label: "Posts", value: stats.postsCount ?? posts.length },
+              { label: "Notes", value: stats.notesCount ?? 0 },
+              { label: "Followers", value: followerCount },
+              { label: "Following", value: profile.following?.length ?? 0 },
             ].map(({ label, value }) => (
-              <div key={label} className="text-center">
-                <p className="text-lg font-bold text-slate-900 dark:text-white">{value}</p>
+              <button
+                key={label}
+                type="button"
+                onClick={() => {
+                  if (label === "Followers") openConnections("followers");
+                  if (label === "Following") openConnections("following");
+                }}
+                className="text-center"
+              >
+                <p className="text-lg font-bold text-slate-900 dark:text-white">
+                  {value}
+                </p>
                 <p className="text-xs text-slate-500">{label}</p>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -149,14 +194,14 @@ export default function ProfilePage() {
 
       {/* Content tabs */}
       <div className="flex gap-1 card p-1.5">
-        {['posts', 'about'].map((t) => (
+        {["posts", "about"].map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`flex-1 py-2.5 rounded-lg text-sm font-medium capitalize transition-all ${
               tab === t
-                ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-400 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                ? "bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-400 shadow-sm"
+                : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
             }`}
           >
             {t}
@@ -165,7 +210,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Posts tab */}
-      {tab === 'posts' && (
+      {tab === "posts" && (
         <div className="space-y-4">
           {postsLoading && [1, 2].map((i) => <PostSkeleton key={i} />)}
           {!postsLoading && posts.map((p) => <PostCard key={p._id} post={p} />)}
@@ -173,32 +218,126 @@ export default function ProfilePage() {
             <EmptyState
               icon={MessageSquare}
               title="No posts yet"
-              description={isOwnProfile ? "You haven't posted anything yet." : `${profile.name} hasn't posted yet.`}
+              description={
+                isOwnProfile
+                  ? "You haven't posted anything yet."
+                  : `${profile.name} hasn't posted yet.`
+              }
             />
           )}
         </div>
       )}
 
       {/* About tab */}
-      {tab === 'about' && (
+      {tab === "about" && (
         <div className="card p-6 space-y-5">
           <h3 className="font-bold text-slate-900 dark:text-white">About</h3>
           {[
-            { label: 'Full Name', value: profile.name },
-            { label: 'Username', value: `@${profile.username}` },
-            { label: 'Email', value: isOwnProfile ? profile.email : undefined },
-            { label: 'College', value: profile.college },
-            { label: 'Department', value: profile.department },
-            { label: 'Year', value: profile.year },
-            { label: 'Bio', value: profile.bio },
-            { label: 'Role', value: profile.role },
-            { label: 'Member since', value: formatFullDate(profile.createdAt) },
-          ].filter((i) => i.value).map(({ label, value }) => (
-            <div key={label} className="flex gap-4">
-              <span className="text-sm text-slate-500 w-32 shrink-0">{label}</span>
-              <span className="text-sm font-medium text-slate-800 dark:text-slate-200 capitalize">{value}</span>
+            { label: "Full Name", value: profile.name },
+            { label: "Username", value: `@${profile.username}` },
+            { label: "Email", value: isOwnProfile ? profile.email : undefined },
+            { label: "College", value: profile.college },
+            { label: "Department", value: profile.department },
+            { label: "Year", value: profile.year },
+            { label: "Bio", value: profile.bio },
+            { label: "Role", value: profile.role },
+            { label: "Member since", value: formatFullDate(profile.createdAt) },
+          ]
+            .filter((i) => i.value)
+            .map(({ label, value }) => (
+              <div key={label} className="flex gap-4">
+                <span className="text-sm text-slate-500 w-32 shrink-0">
+                  {label}
+                </span>
+                <span className="text-sm font-medium text-slate-800 dark:text-slate-200 capitalize">
+                  {value}
+                </span>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {showConnections && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-800">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold capitalize text-slate-900 dark:text-white">
+                {connectionType}
+              </h2>
+
+              <button
+                type="button"
+                onClick={() => setShowConnections(false)}
+                className="text-xl text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              >
+                &times;
+              </button>
             </div>
-          ))}
+
+            <div className="max-h-96 space-y-3 overflow-y-auto">
+              {connections.length === 0 ? (
+                <p className="py-6 text-center text-sm text-slate-500">
+                  No {connectionType} yet.
+                </p>
+              ) : (
+                connections.map((person) => (
+                  <div
+                    key={person._id}
+                    className="flex items-center justify-between gap-3"
+                  >
+                    <Link
+                      to={`/profile/${person.username}`}
+                      onClick={() => setShowConnections(false)}
+                      className="flex min-w-0 items-center gap-3"
+                    >
+                      <Avatar user={person} size="md" />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                          {person.name}
+                        </p>
+                        <p className="truncate text-xs text-slate-500">
+                          @{person.username}
+                        </p>
+                      </div>
+                    </Link>
+
+                    {isOwnProfile && connectionType === "following" && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const res = await api.put(
+                              `/users/${person._id}/follow`,
+                            );
+
+                            if (res.data.following === false) {
+                              setConnections((prev) =>
+                                prev.filter((p) => p._id !== person._id),
+                              );
+
+                              setProfile((prev) => ({
+                                ...prev,
+                                following: prev.following.filter(
+                                  (p) => p._id !== person._id,
+                                ),
+                              }));
+
+                              toast.success("Unfollowed successfully");
+                            }
+                          } catch {
+                            toast.error("Could not unfollow user");
+                          }
+                        }}
+                        className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                      >
+                        Unfollow
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

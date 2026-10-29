@@ -1,15 +1,25 @@
-const express = require('express');
+import express from "express";
+
+import { protect, authorize } from "../middleware/auth.js";
+import {
+  getDashboard,
+  getUsers,
+  toggleUserActive,
+  deleteUser,
+  getReportedContent,
+  changeUserRole,
+} from "../controllers/adminController.js";
+
 const router = express.Router();
-const { protect, authorize } = require('../middleware/auth');
-const { getDashboard, getUsers, toggleUserActive, deleteUser, getReportedContent, changeUserRole } = require('../controllers/adminController');
 
-router.use(protect, authorize('admin'));
+// Only logged-in admins can access these routes
+router.use(protect, authorize("admin"));
 
-router.get('/dashboard', getDashboard);
-router.get('/users', getUsers);
-router.put('/users/:id/toggle-active', toggleUserActive);
-router.delete('/users/:id', deleteUser);
-router.put('/users/:id/role', changeUserRole);
-router.get('/reported', getReportedContent);
+router.get("/dashboard", getDashboard);
+router.get("/users", getUsers);
+router.put("/users/:id/toggle-active", toggleUserActive);
+router.delete("/users/:id", deleteUser);
+router.put("/users/:id/role", changeUserRole);
+router.get("/reported", getReportedContent);
 
-module.exports = router;
+export default router;

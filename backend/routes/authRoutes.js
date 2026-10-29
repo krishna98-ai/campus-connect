@@ -1,9 +1,11 @@
-const express = require('express');
-const router = express.Router();
-const { protect } = require('../middleware/auth');
-const { uploadAvatar } = require('../config/cloudinary');
-const {
+import express from "express";
+
+import { protect } from "../middleware/auth.js";
+import { uploadAvatar } from "../config/cloudinary.js";
+
+import {
   signup,
+  verifySignupOtp,
   login,
   logout,
   getMe,
@@ -11,15 +13,23 @@ const {
   resetPassword,
   updatePassword,
   updateProfile,
-} = require('../controllers/authController');
+} from "../controllers/authController.js";
 
-router.post('/signup', signup);
-router.post('/login', login);
-router.post('/logout', protect, logout);
-router.get('/me', protect, getMe);
-router.post('/forgot-password', forgotPassword);
-router.put('/reset-password/:token', resetPassword);
-router.put('/update-password', protect, updatePassword);
-router.put('/update-profile', protect, uploadAvatar.single('avatar'), updateProfile);
+const router = express.Router();
 
-module.exports = router;
+router.post("/signup", signup);
+router.post("/verify-otp", verifySignupOtp);
+router.post("/login", login);
+router.post("/logout", protect, logout);
+router.get("/me", protect, getMe);
+router.post("/forgot-password", forgotPassword);
+router.put("/reset-password/:token", resetPassword);
+router.put("/update-password", protect, updatePassword);
+router.put(
+  "/update-profile",
+  protect,
+  uploadAvatar.single("avatar"),
+  updateProfile,
+);
+
+export default router;

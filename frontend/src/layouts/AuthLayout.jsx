@@ -1,54 +1,75 @@
-import { Outlet, Link } from 'react-router-dom';
-import { GraduationCap } from 'lucide-react';
+
+import { Outlet, Link } from "react-router-dom";
+import { GraduationCap } from "lucide-react";
+
+const stats = [
+  { label: "Students", value: "10K+" },
+  { label: "Notes Shared", value: "50K+" },
+  { label: "Colleges", value: "200+" },
+  { label: "Daily Posts", value: "5K+" },
+];
 
 export default function AuthLayout() {
   return (
-    <div className="min-h-screen flex">
-      {/* Left branding panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-brand flex-col justify-between p-12">
+    <div className="flex min-h-screen">
+      {/* Desktop branding */}
+      <div className="hidden w-1/2 flex-col justify-between bg-gradient-brand p-12 lg:flex">
         <Link to="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-            <GraduationCap className="w-6 h-6 text-white" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+            <GraduationCap className="h-6 w-6 text-white" />
           </div>
-          <span className="text-white font-bold text-xl">Campus Connect</span>
+
+          <span className="text-xl font-bold text-white">
+            Campus Connect
+          </span>
         </Link>
 
-        <div className="text-white space-y-6">
+        <div className="space-y-6 text-white">
           <h1 className="text-4xl font-bold leading-tight">
-            Your campus community,<br />all in one place.
+            Your campus community,
+            <br />
+            all in one place.
           </h1>
-          <p className="text-white/80 text-lg leading-relaxed">
-            Connect with classmates, share notes, discover campus events, and chat in real time.
+
+          <p className="text-lg leading-relaxed text-white/80">
+            Connect with classmates, share notes, discover campus events,
+            and chat in real time.
           </p>
 
           <div className="grid grid-cols-2 gap-4 pt-4">
-            {[
-              { label: 'Students', value: '10K+' },
-              { label: 'Notes Shared', value: '50K+' },
-              { label: 'Colleges', value: '200+' },
-              { label: 'Daily Posts', value: '5K+' },
-            ].map(({ label, value }) => (
-              <div key={label} className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-                <div className="text-2xl font-bold">{value}</div>
-                <div className="text-white/70 text-sm">{label}</div>
+            {stats.map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-xl bg-white/10 p-4"
+              >
+                <div className="text-2xl font-bold">{stat.value}</div>
+                <div className="text-sm text-white/70">
+                  {stat.label}
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="text-white/50 text-sm">© {new Date().getFullYear()} Campus Connect. All rights reserved.</p>
+        <p className="text-sm text-white/50">
+          © {new Date().getFullYear()} Campus Connect. All rights reserved.
+        </p>
       </div>
 
-      {/* Right auth form panel */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-white dark:bg-slate-900">
+      {/* Auth pages */}
+      <div className="flex flex-1 items-center justify-center bg-white p-6 dark:bg-slate-900">
         <div className="w-full max-w-md">
           {/* Mobile logo */}
-          <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <div className="w-10 h-10 bg-gradient-brand rounded-xl flex items-center justify-center">
-              <GraduationCap className="w-6 h-6 text-white" />
+          <div className="mb-8 flex items-center gap-3 lg:hidden">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-brand">
+              <GraduationCap className="h-6 w-6 text-white" />
             </div>
-            <span className="font-bold text-xl text-slate-900 dark:text-white">Campus Connect</span>
+
+            <span className="text-xl font-bold text-slate-900 dark:text-white">
+              Campus Connect
+            </span>
           </div>
+
           <Outlet />
         </div>
       </div>

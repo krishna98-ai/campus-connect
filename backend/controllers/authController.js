@@ -1,28 +1,112 @@
-const crypto = require('crypto');
-const User = require('../models/User');
-const { sendTokenResponse, clearTokenCookie } = require('../utils/jwt');
-const { sendSuccess, createError } = require('../utils/apiResponse');
-const { sendPasswordResetEmail, sendWelcomeEmail } = require('../services/emailService');
+import crypto from "crypto";
+import User from "../models/User.js";
+import { sendTokenResponse, clearTokenCookie } from "../utils/jwt.js";
+import { sendSuccess, createError } from "../utils/apiResponse.js";
+import {
+  sendPasswordResetEmail,
+  sendWelcomeEmail,
+  sendSignupOtpEmail
+} from "../services/emailService.js";
+import { cloudinary } from "../config/cloudinary.js";
 
 // @desc    Register user
 // @route   POST /api/auth/signup
 // @access  Public
-exports.signup = async (req, res, next) => {
+export const signup = async (req, res, next) => {
   try {
     const { name, username, email, password } = req.body;
 
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail) return next(createError('Email already registered', 409));
+    if (!name || !username || !email || !password) {
+      return next(createError("All fields are required", 400));
+    }
 
-    const existingUsername = await User.findOne({ username });
-    if (existingUsername) return next(createError('Username already taken', 409));
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedUsername = username.trim().toLowerCase();
+const existingEmail = await User.findOne({
+  email: normalizedEmail,
+});
 
-    const user = await User.create({ name, username, email, password });
+if (existingEmail) {
+  // Verified account: do not resend OTP
+  if (existingEmail.isEmailVerified) {
+    return next(
+      createError("Email already registered. Please login.", 409)
+    );
+  }
 
-    // Send welcome email (non-blocking)
-    sendWelcomeEmail(email, name).catch(console.error);
+  // Existing unverified account: generate a fresh OTP
+  const previousToken = existingEmail.emailVerificationToken;
+  const previousExpire = existingEmail.emailVerificationExpire;
 
-    sendTokenResponse(user, 201, res, 'Account created successfully');
+  const otp = existingEmail.getEmailVerificationToken();
+
+  await existingEmail.save({ validateBeforeSave: false });
+
+  try {
+    await sendSignupOtpEmail(
+      existingEmail.email,
+      existingEmail.name,
+      otp
+    );
+  } catch (emailError) {
+    // Restore the previous OTP if email sending fails
+    existingEmail.emailVerificationToken = previousToken;
+    existingEmail.emailVerificationExpire = previousExpire;
+
+    await existingEmail.save({ validateBeforeSave: false });
+
+    return next(
+      createError("Unable to send OTP. Please try again.", 500)
+    );
+  }
+
+  return sendSuccess(
+    res,
+    200,
+    "Your account is not verified. A new OTP has been sent.",
+    {
+      email: existingEmail.email,
+      otpSent: true,
+    }
+  );
+}
+
+    const existingUsername = await User.findOne({
+      username: normalizedUsername,
+    });
+
+    if (existingUsername) {
+      return next(createError("Username already taken", 409));
+    }
+
+    const user = new User({
+      name: name.trim(),
+      username: normalizedUsername,
+      email: normalizedEmail,
+      password,
+      isEmailVerified: false,
+    });
+
+    const otp = user.getEmailVerificationToken();
+
+    await user.save();
+
+    try {
+      await sendSignupOtpEmail(user.email, user.name, otp);
+    } catch (emailError) {
+      await User.deleteOne({ _id: user._id });
+      throw emailError;
+    }
+
+    return sendSuccess(
+      res,
+      200,
+      "OTP sent successfully. Please verify your email.",
+      {
+        email: user.email,
+        otpSent: true,
+      },
+    );
   } catch (error) {
     next(error);
   }
@@ -31,40 +115,108 @@ exports.signup = async (req, res, next) => {
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
-exports.login = async (req, res, next) => {
+
+export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return next(createError('Please provide email and password', 400));
+      return next(createError("Please provide email and password", 400));
     }
 
-    const user = await User.findOne({ email }).select('+password');
-    if (!user) return next(createError('Invalid credentials', 401));
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+    }).select("+password");
+
+    if (!user) {
+      return next(createError("Invalid credentials", 401));
+    }
 
     const isMatch = await user.matchPassword(password);
-    if (!isMatch) return next(createError('Invalid credentials', 401));
+
+    if (!isMatch) {
+      return next(createError("Invalid credentials", 401));
+    }
+
+  if (!user.isEmailVerified) {
+    const otp = user.getEmailVerificationToken();
+
+    await user.save({ validateBeforeSave: false });
+
+    try {
+      await sendSignupOtpEmail(user.email, user.name, otp);
+    } catch (emailError) {
+      return next(createError("Unable to send OTP. Please try again.", 500));
+    }
+
+    return next(
+      createError("Please verify your email. A new OTP has been sent.", 403),
+    );
+  }
 
     if (!user.isActive) {
-      return next(createError('Your account has been deactivated. Contact support.', 403));
+      return next(
+        createError("Your account has been deactivated. Contact support.", 403),
+      );
     }
 
     user.lastSeen = Date.now();
+
     await user.save({ validateBeforeSave: false });
 
-    sendTokenResponse(user, 200, res, 'Logged in successfully');
+    return sendTokenResponse(user, 200, res, "Logged in successfully");
   } catch (error) {
     next(error);
   }
 };
 
+// @route   POST /api/auth/verify-otp
+// @desc    Verify signup email using 4-digit OTP and log in the user
+// @access  Public
+
+export const verifySignupOtp = async (req, res, next) => {
+  try {
+    const email = req.body.email?.trim().toLowerCase();
+    const otp = String(req.body.otp ?? "").trim();
+
+    if (!email || !/^\d{4}$/.test(otp)) {
+      return next(createError("Email and valid 4-digit OTP are required", 400));
+    }
+
+    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+    const user = await User.findOne({
+      email,
+      isEmailVerified: false,
+      emailVerificationToken: otpHash,
+      emailVerificationExpire: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return next(createError("Invalid or expired OTP", 400));
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpire = undefined;
+
+    await user.save();
+    sendWelcomeEmail(user.email,user.name)
+
+    return sendTokenResponse(user, 200, res, "Email verified successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 // @desc    Logout user
 // @route   POST /api/auth/logout
 // @access  Private
-exports.logout = async (req, res, next) => {
+export const logout = async (req, res, next) => {
   try {
     clearTokenCookie(res);
-    sendSuccess(res, 200, 'Logged out successfully');
+    sendSuccess(res, 200, "Logged out successfully");
   } catch (error) {
     next(error);
   }
@@ -73,13 +225,13 @@ exports.logout = async (req, res, next) => {
 // @desc    Get current user
 // @route   GET /api/auth/me
 // @access  Private
-exports.getMe = async (req, res, next) => {
+export const getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id)
-      .populate('followers', 'name username avatar')
-      .populate('following', 'name username avatar');
+      .populate("followers", "name username avatar")
+      .populate("following", "name username avatar");
 
-    sendSuccess(res, 200, 'User fetched', { user });
+    sendSuccess(res, 200, "User fetched", { user });
   } catch (error) {
     next(error);
   }
@@ -88,15 +240,23 @@ exports.getMe = async (req, res, next) => {
 // @desc    Forgot password
 // @route   POST /api/auth/forgot-password
 // @access  Public
-exports.forgotPassword = async (req, res, next) => {
+export const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
-    if (!email) return next(createError('Email is required', 400));
+
+    if (!email) {
+      return next(createError("Email is required", 400));
+    }
 
     const user = await User.findOne({ email });
+
     if (!user) {
-      // Don't reveal if email exists
-      return sendSuccess(res, 200, 'If that email is registered, a reset link has been sent.');
+      // Don't reveal whether the email exists
+      return sendSuccess(
+        res,
+        200,
+        "If that email is registered, a reset link has been sent.",
+      );
     }
 
     const resetToken = user.getResetPasswordToken();
@@ -106,12 +266,13 @@ exports.forgotPassword = async (req, res, next) => {
 
     try {
       await sendPasswordResetEmail(user.email, user.name, resetUrl);
-      sendSuccess(res, 200, 'Password reset email sent');
+      sendSuccess(res, 200, "Password reset email sent");
     } catch (emailErr) {
       user.resetPasswordToken = undefined;
       user.resetPasswordExpire = undefined;
       await user.save({ validateBeforeSave: false });
-      return next(createError('Email sending failed. Please try again.', 500));
+
+      return next(createError("Email sending failed. Please try again.", 500));
     }
   } catch (error) {
     next(error);
@@ -121,26 +282,35 @@ exports.forgotPassword = async (req, res, next) => {
 // @desc    Reset password
 // @route   PUT /api/auth/reset-password/:token
 // @access  Public
-exports.resetPassword = async (req, res, next) => {
+export const resetPassword = async (req, res, next) => {
   try {
     const { password } = req.body;
-    if (!password) return next(createError('Password is required', 400));
 
-    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+    if (!password) {
+      return next(createError("Password is required", 400));
+    }
+
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(req.params.token)
+      .digest("hex");
 
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
       resetPasswordExpire: { $gt: Date.now() },
     });
 
-    if (!user) return next(createError('Invalid or expired reset token', 400));
+    if (!user) {
+      return next(createError("Invalid or expired reset token", 400));
+    }
 
     user.password = password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
+
     await user.save();
 
-    sendTokenResponse(user, 200, res, 'Password reset successful');
+    sendTokenResponse(user, 200, res, "Password reset successful");
   } catch (error) {
     next(error);
   }
@@ -149,22 +319,25 @@ exports.resetPassword = async (req, res, next) => {
 // @desc    Update password
 // @route   PUT /api/auth/update-password
 // @access  Private
-exports.updatePassword = async (req, res, next) => {
+export const updatePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return next(createError('Please provide current and new password', 400));
+      return next(createError("Please provide current and new password", 400));
     }
 
-    const user = await User.findById(req.user.id).select('+password');
+    const user = await User.findById(req.user.id).select("+password");
     const isMatch = await user.matchPassword(currentPassword);
-    if (!isMatch) return next(createError('Current password is incorrect', 401));
+
+    if (!isMatch) {
+      return next(createError("Current password is incorrect", 401));
+    }
 
     user.password = newPassword;
     await user.save();
 
-    sendTokenResponse(user, 200, res, 'Password updated successfully');
+    sendTokenResponse(user, 200, res, "Password updated successfully");
   } catch (error) {
     next(error);
   }
@@ -173,9 +346,9 @@ exports.updatePassword = async (req, res, next) => {
 // @desc    Update profile
 // @route   PUT /api/auth/update-profile
 // @access  Private
-exports.updateProfile = async (req, res, next) => {
+export const updateProfile = async (req, res, next) => {
   try {
-    const allowedFields = ['name', 'bio', 'college', 'department', 'year'];
+    const allowedFields = ["name", "bio", "college", "department", "year"];
     const updates = {};
 
     allowedFields.forEach((field) => {
@@ -186,10 +359,8 @@ exports.updateProfile = async (req, res, next) => {
 
     // Handle avatar upload
     if (req.file) {
-      const { cloudinary } = require('../config/cloudinary');
-
-      // Delete old avatar from cloudinary
-      if (req.user.avatar && req.user.avatar.public_id) {
+      // Delete old avatar from Cloudinary
+      if (req.user.avatar?.public_id) {
         await cloudinary.uploader.destroy(req.user.avatar.public_id);
       }
 
@@ -204,7 +375,7 @@ exports.updateProfile = async (req, res, next) => {
       runValidators: true,
     });
 
-    sendSuccess(res, 200, 'Profile updated successfully', { user });
+    sendSuccess(res, 200, "Profile updated successfully", { user });
   } catch (error) {
     next(error);
   }

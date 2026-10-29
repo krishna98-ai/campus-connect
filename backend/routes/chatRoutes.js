@@ -1,18 +1,25 @@
-const express = require('express');
-const router = express.Router();
-const { protect } = require('../middleware/auth');
-const {
+import express from "express";
+import { uploadImage } from "../config/cloudinary.js";
+import { protect } from "../middleware/auth.js";
+import {
   getOrCreateConversation,
   getConversations,
   getMessages,
   sendMessage,
   deleteMessage,
-} = require('../controllers/chatController');
+} from "../controllers/chatController.js";
 
-router.post('/conversations', protect, getOrCreateConversation);
-router.get('/conversations', protect, getConversations);
-router.get('/conversations/:conversationId/messages', protect, getMessages);
-router.post('/conversations/:conversationId/messages', protect, sendMessage);
-router.delete('/messages/:messageId', protect, deleteMessage);
+const router = express.Router();
 
-module.exports = router;
+router.post("/conversations", protect, getOrCreateConversation);
+router.get("/conversations", protect, getConversations);
+router.get("/conversations/:conversationId/messages", protect, getMessages);
+router.post(
+  "/conversations/:conversationId/messages",
+  protect,
+  uploadImage.single("image"),
+  sendMessage,
+);
+router.delete("/messages/:messageId", protect, deleteMessage);
+
+export default router;

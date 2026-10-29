@@ -1,9 +1,10 @@
-const { Server } = require('socket.io');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+
+import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
 let io;
-const onlineUsers = new Map(); // userId -> socketId
+const onlineUsers = new Map();
 
 const initSocket = (server) => {
   io = new Server(server, {
@@ -16,7 +17,6 @@ const initSocket = (server) => {
     pingInterval: 25000,
   });
 
-  // Auth middleware for sockets
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token || socket.handshake.headers?.cookie?.split('token=')[1]?.split(';')[0];
@@ -25,6 +25,7 @@ const initSocket = (server) => {
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.id).select('name username avatar');
+
       if (!user) return next(new Error('User not found'));
 
       socket.userId = user._id.toString();
@@ -37,19 +38,16 @@ const initSocket = (server) => {
 
   io.on('connection', (socket) => {
     const userId = socket.userId;
-    console.log(`🔌 Socket connected: ${socket.user.username} (${socket.id})`);
 
-    // Register user as online
+    console.log(`Socket connected: ${socket.user.username}`);
+
     onlineUsers.set(userId, socket.id);
-    socket.join(userId); // Personal room for notifications
+    socket.join(userId);
 
-    // Broadcast online status to all connected clients
     io.emit('user_online', { userId, isOnline: true });
 
-    // Update last seen
     User.findByIdAndUpdate(userId, { lastSeen: new Date() }).exec();
 
-    // Handle joining conversation room
     socket.on('join_conversation', (conversationId) => {
       socket.join(`conv_${conversationId}`);
     });
@@ -58,7 +56,6 @@ const initSocket = (server) => {
       socket.leave(`conv_${conversationId}`);
     });
 
-    // Typing indicators
     socket.on('typing', ({ conversationId, isTyping }) => {
       socket.to(`conv_${conversationId}`).emit('typing', {
         userId,
@@ -68,9 +65,9 @@ const initSocket = (server) => {
       });
     });
 
-    // Handle disconnect
     socket.on('disconnect', () => {
-      console.log(`🔌 Socket disconnected: ${socket.user.username}`);
+      console.log(`Socket disconnected: ${socket.user.username}`);
+
       onlineUsers.delete(userId);
       io.emit('user_online', { userId, isOnline: false });
 
@@ -84,4 +81,4 @@ const initSocket = (server) => {
 const getIO = () => io;
 const getOnlineUsers = () => onlineUsers;
 
-module.exports = { initSocket, getIO, getOnlineUsers };
+export { initSocket, getIO, getOnlineUsers };

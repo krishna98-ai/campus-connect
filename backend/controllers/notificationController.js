@@ -1,10 +1,15 @@
-const Notification = require('../models/Notification');
-const { sendSuccess, getPaginationParams, buildPaginationMeta, sendPaginated } = require('../utils/apiResponse');
+import Notification from "../models/Notification.js";
 
+import {
+  sendSuccess,
+  getPaginationParams,
+  buildPaginationMeta,
+  sendPaginated,
+} from "../utils/apiResponse.js";
 // @desc    Get notifications for current user
 // @route   GET /api/notifications
 // @access  Private
-exports.getNotifications = async (req, res, next) => {
+export const  getNotifications = async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
 
@@ -13,14 +18,14 @@ exports.getNotifications = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('sender', 'name username avatar')
-        .populate('post', 'content')
+        .populate("sender", "name username avatar")
+        .populate("post", "content")
         .lean(),
       Notification.countDocuments({ recipient: req.user.id }),
       Notification.countDocuments({ recipient: req.user.id, isRead: false }),
     ]);
 
-    sendPaginated(res, 200, 'Notifications fetched', notifications, {
+    sendPaginated(res, 200, "Notifications fetched", notifications, {
       ...buildPaginationMeta(total, page, limit),
       unreadCount,
     });
@@ -32,20 +37,23 @@ exports.getNotifications = async (req, res, next) => {
 // @desc    Mark notification(s) as read
 // @route   PUT /api/notifications/read
 // @access  Private
-exports.markAsRead = async (req, res, next) => {
+export const markAsRead = async (req, res, next) => {
   try {
     const { ids } = req.body; // Array of IDs or 'all'
 
-    if (ids === 'all') {
-      await Notification.updateMany({ recipient: req.user.id, isRead: false }, { isRead: true, readAt: new Date() });
+    if (ids === "all") {
+      await Notification.updateMany(
+        { recipient: req.user.id, isRead: false },
+        { isRead: true, readAt: new Date() },
+      );
     } else if (Array.isArray(ids) && ids.length > 0) {
       await Notification.updateMany(
         { _id: { $in: ids }, recipient: req.user.id },
-        { isRead: true, readAt: new Date() }
+        { isRead: true, readAt: new Date() },
       );
     }
 
-    sendSuccess(res, 200, 'Notifications marked as read');
+    sendSuccess(res, 200, "Notifications marked as read");
   } catch (error) {
     next(error);
   }
@@ -54,10 +62,13 @@ exports.markAsRead = async (req, res, next) => {
 // @desc    Delete notification
 // @route   DELETE /api/notifications/:id
 // @access  Private
-exports.deleteNotification = async (req, res, next) => {
+export const deleteNotification = async (req, res, next) => {
   try {
-    await Notification.findOneAndDelete({ _id: req.params.id, recipient: req.user.id });
-    sendSuccess(res, 200, 'Notification deleted');
+    await Notification.findOneAndDelete({
+      _id: req.params.id,
+      recipient: req.user.id,
+    });
+    sendSuccess(res, 200, "Notification deleted");
   } catch (error) {
     next(error);
   }
@@ -66,10 +77,13 @@ exports.deleteNotification = async (req, res, next) => {
 // @desc    Get unread count
 // @route   GET /api/notifications/unread-count
 // @access  Private
-exports.getUnreadCount = async (req, res, next) => {
+export const getUnreadCount = async (req, res, next) => {
   try {
-    const count = await Notification.countDocuments({ recipient: req.user.id, isRead: false });
-    sendSuccess(res, 200, 'Unread count', { count });
+    const count = await Notification.countDocuments({
+      recipient: req.user.id,
+      isRead: false,
+    });
+    sendSuccess(res, 200, "Unread count", { count });
   } catch (error) {
     next(error);
   }
