@@ -14,6 +14,8 @@ import { cloudinary } from "../config/cloudinary.js";
 // @access  Public
 export const signup = async (req, res, next) => {
   try {
+
+    console.log("1. Signup controller started");
     const { name, username, email, password } = req.body;
 
     if (!name || !username || !email || !password) {
@@ -41,13 +43,16 @@ if (existingEmail) {
   const otp = existingEmail.getEmailVerificationToken();
 
   await existingEmail.save({ validateBeforeSave: false });
+onsole.log("2. User saved");
 
   try {
+    console.log("3. Sending OTP email");
     await sendSignupOtpEmail(
       existingEmail.email,
       existingEmail.name,
       otp
     );
+    console.log("4. OTP email function completed");
   } catch (emailError) {
     // Restore the previous OTP if email sending fails
     existingEmail.emailVerificationToken = previousToken;
