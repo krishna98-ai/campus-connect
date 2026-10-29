@@ -113,19 +113,24 @@ const toggleFollow = async (req, res, next) => {
 // @desc    Search users
 // @route   GET /api/users/search
 // @access  Public
+
 const searchUsers = async (req, res, next) => {
   try {
     const { q } = req.query;
-    if (!q) return next(createError("Search query is required", 400));
 
-    const users = await User.find({
-      $or: [
-        { name: { $regex: q, $options: "i" } },
-        { username: { $regex: q, $options: "i" } },
-        { college: { $regex: q, $options: "i" } },
-      ],
-    })
+    const filter = q
+      ? {
+          $or: [
+            { name: { $regex: q, $options: "i" } },
+            { username: { $regex: q, $options: "i" } },
+            { college: { $regex: q, $options: "i" } },
+          ],
+        }
+      : {};
+
+    const users = await User.find(filter)
       .select("name username avatar bio college department")
+      .sort({ createdAt: -1 })
       .limit(20)
       .lean();
 
@@ -134,6 +139,7 @@ const searchUsers = async (req, res, next) => {
     next(error);
   }
 };
+
 
 // @desc    Get saved posts
 // @route   GET /api/users/saved-posts

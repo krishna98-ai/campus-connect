@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 
 const userSchema = new mongoose.Schema(
-  {
+{
     name: {
       type: String,
       required: [true, "Name is required"],
@@ -139,18 +139,19 @@ userSchema.methods.getResetPasswordToken = function () {
   return resetToken;
 };
 
-// Generate email verification token
+
+// Generate 4-digit email verification OTP
 userSchema.methods.getEmailVerificationToken = function () {
-  const token = crypto.randomBytes(32).toString("hex");
+  const otp = crypto.randomInt(1000, 10000).toString();
 
   this.emailVerificationToken = crypto
     .createHash("sha256")
-    .update(token)
+    .update(otp)
     .digest("hex");
 
-  this.emailVerificationExpire = Date.now() + 24 * 60 * 60 * 1000;
+  this.emailVerificationExpire = Date.now() + 10 * 60 * 1000;
 
-  return token;
+  return otp;
 };
 
 // Update last seen time
@@ -170,6 +171,7 @@ userSchema.index({
 userSchema.index({ username: 1 });
 userSchema.index({ email: 1 });
 
+userSchema.index({ emailVerificationExpire: 1 }, { expireAfterSeconds: 0 });
 const User = mongoose.model("User", userSchema);
 
 export default User;

@@ -5,6 +5,7 @@ import { sendSuccess, createError } from "../utils/apiResponse.js";
 import {
   sendPasswordResetEmail,
   sendWelcomeEmail,
+  sendSignupOtpEmail
 } from "../services/emailService.js";
 import { cloudinary } from "../config/cloudinary.js";
 
@@ -15,22 +16,97 @@ export const signup = async (req, res, next) => {
   try {
     const { name, username, email, password } = req.body;
 
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail) {
-      return next(createError("Email already registered", 409));
+    if (!name || !username || !email || !password) {
+      return next(createError("All fields are required", 400));
     }
 
-    const existingUsername = await User.findOne({ username });
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedUsername = username.trim().toLowerCase();
+const existingEmail = await User.findOne({
+  email: normalizedEmail,
+});
+
+if (existingEmail) {
+  // Verified account: do not resend OTP
+  if (existingEmail.isEmailVerified) {
+    return next(
+      createError("Email already registered. Please login.", 409)
+    );
+  }
+
+  // Existing unverified account: generate a fresh OTP
+  const previousToken = existingEmail.emailVerificationToken;
+  const previousExpire = existingEmail.emailVerificationExpire;
+
+  const otp = existingEmail.getEmailVerificationToken();
+
+  await existingEmail.save({ validateBeforeSave: false });
+
+  try {
+    await sendSignupOtpEmail(
+      existingEmail.email,
+      existingEmail.name,
+      otp
+    );
+  } catch (emailError) {
+    // Restore the previous OTP if email sending fails
+    existingEmail.emailVerificationToken = previousToken;
+    existingEmail.emailVerificationExpire = previousExpire;
+
+    await existingEmail.save({ validateBeforeSave: false });
+
+    return next(
+      createError("Unable to send OTP. Please try again.", 500)
+    );
+  }
+
+  return sendSuccess(
+    res,
+    200,
+    "Your account is not verified. A new OTP has been sent.",
+    {
+      email: existingEmail.email,
+      otpSent: true,
+    }
+  );
+}
+
+    const existingUsername = await User.findOne({
+      username: normalizedUsername,
+    });
+
     if (existingUsername) {
       return next(createError("Username already taken", 409));
     }
 
-    const user = await User.create({ name, username, email, password });
+    const user = new User({
+      name: name.trim(),
+      username: normalizedUsername,
+      email: normalizedEmail,
+      password,
+      isEmailVerified: false,
+    });
 
-    // Send welcome email without blocking the response
-    sendWelcomeEmail(email, name).catch(console.error);
+    const otp = user.getEmailVerificationToken();
 
-    sendTokenResponse(user, 201, res, "Account created successfully");
+    await user.save();
+
+    try {
+      await sendSignupOtpEmail(user.email, user.name, otp);
+    } catch (emailError) {
+      await User.deleteOne({ _id: user._id });
+      throw emailError;
+    }
+
+    return sendSuccess(
+      res,
+      200,
+      "OTP sent successfully. Please verify your email.",
+      {
+        email: user.email,
+        otpSent: true,
+      },
+    );
   } catch (error) {
     next(error);
   }
@@ -39,6 +115,7 @@ export const signup = async (req, res, next) => {
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
+
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -47,15 +124,35 @@ export const login = async (req, res, next) => {
       return next(createError("Please provide email and password", 400));
     }
 
-    const user = await User.findOne({ email }).select("+password");
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+    }).select("+password");
+
     if (!user) {
       return next(createError("Invalid credentials", 401));
     }
 
     const isMatch = await user.matchPassword(password);
+
     if (!isMatch) {
       return next(createError("Invalid credentials", 401));
     }
+
+  if (!user.isEmailVerified) {
+    const otp = user.getEmailVerificationToken();
+
+    await user.save({ validateBeforeSave: false });
+
+    try {
+      await sendSignupOtpEmail(user.email, user.name, otp);
+    } catch (emailError) {
+      return next(createError("Unable to send OTP. Please try again.", 500));
+    }
+
+    return next(
+      createError("Please verify your email. A new OTP has been sent.", 403),
+    );
+  }
 
     if (!user.isActive) {
       return next(
@@ -64,13 +161,54 @@ export const login = async (req, res, next) => {
     }
 
     user.lastSeen = Date.now();
+
     await user.save({ validateBeforeSave: false });
 
-    sendTokenResponse(user, 200, res, "Logged in successfully");
+    return sendTokenResponse(user, 200, res, "Logged in successfully");
   } catch (error) {
     next(error);
   }
 };
+
+// @route   POST /api/auth/verify-otp
+// @desc    Verify signup email using 4-digit OTP and log in the user
+// @access  Public
+
+export const verifySignupOtp = async (req, res, next) => {
+  try {
+    const email = req.body.email?.trim().toLowerCase();
+    const otp = String(req.body.otp ?? "").trim();
+
+    if (!email || !/^\d{4}$/.test(otp)) {
+      return next(createError("Email and valid 4-digit OTP are required", 400));
+    }
+
+    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+    const user = await User.findOne({
+      email,
+      isEmailVerified: false,
+      emailVerificationToken: otpHash,
+      emailVerificationExpire: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return next(createError("Invalid or expired OTP", 400));
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpire = undefined;
+
+    await user.save();
+    sendWelcomeEmail(user.email,user.name)
+
+    return sendTokenResponse(user, 200, res, "Email verified successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 // @desc    Logout user
 // @route   POST /api/auth/logout

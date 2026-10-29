@@ -1,21 +1,13 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  Eye,
-  EyeOff,
-  Mail,
-  Lock,
-  Loader2,
-} from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Loader2 } from "lucide-react";
 import { loginUser } from "../../store/authSlice";
 import toast from "react-hot-toast";
 
 export default function LoginPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
   const { loading } = useSelector((state) => state.auth);
 
   const [form, setForm] = useState({
@@ -29,9 +21,9 @@ export default function LoginPage() {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!form.email) {
+    if (!form.email.trim()) {
       newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(form.email)) {
+    } else if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
       newErrors.email = "Enter a valid email";
     }
 
@@ -40,37 +32,44 @@ export default function LoginPage() {
     }
 
     setErrors(newErrors);
-
     return Object.keys(newErrors).length === 0;
   };
 
   const handleChange = (field, value) => {
-    setForm({
-      ...form,
-      [field]: value,
-    });
-
-    setErrors({
-      ...errors,
-      [field]: "",
-    });
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
-    const result = await dispatch(loginUser(form));
+    const credentials = {
+      email: form.email.trim().toLowerCase(),
+      password: form.password,
+    };
+
+    const result = await dispatch(loginUser(credentials));
 
     if (loginUser.fulfilled.match(result)) {
       toast.success("Welcome back!");
       navigate("/");
-    } else {
-      toast.error(result.payload || "Login failed");
+      return;
     }
+
+    const errorMessage = String(result.payload || "Login failed");
+
+    if (errorMessage.toLowerCase().includes("verify your email")) {
+      toast.error("Please verify your email to continue.");
+
+      navigate("/verify-otp", {
+        state: { email: credentials.email },
+      });
+      return;
+    }
+
+    toast.error(errorMessage);
   };
 
   return (
@@ -84,40 +83,28 @@ export default function LoginPage() {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-        {/* Email */}
         <div>
           <label className="label">Email address</label>
-
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
             <input
               type="email"
               value={form.email}
-              onChange={(event) =>
-                handleChange("email", event.target.value)
-              }
+              onChange={(e) => handleChange("email", e.target.value)}
               placeholder="you@university.edu"
               className={`input-field pl-10 ${
-                errors.email
-                  ? "border-red-400 focus:ring-red-400"
-                  : ""
+                errors.email ? "border-red-400" : ""
               }`}
             />
           </div>
-
           {errors.email && (
-            <p className="mt-1 text-xs text-red-500">
-              {errors.email}
-            </p>
+            <p className="mt-1 text-xs text-red-500">{errors.email}</p>
           )}
         </div>
 
-        {/* Password */}
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <label className="label mb-0">Password</label>
-
             <Link
               to="/forgot-password"
               className="text-xs font-medium text-primary-600 hover:underline"
@@ -128,25 +115,19 @@ export default function LoginPage() {
 
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
             <input
               type={showPassword ? "text" : "password"}
               value={form.password}
-              onChange={(event) =>
-                handleChange("password", event.target.value)
-              }
+              onChange={(e) => handleChange("password", e.target.value)}
               placeholder="Your password"
               className={`input-field pl-10 pr-10 ${
-                errors.password
-                  ? "border-red-400 focus:ring-red-400"
-                  : ""
+                errors.password ? "border-red-400" : ""
               }`}
             />
-
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
             >
               {showPassword ? (
                 <EyeOff className="h-4 w-4" />
@@ -155,11 +136,8 @@ export default function LoginPage() {
               )}
             </button>
           </div>
-
           {errors.password && (
-            <p className="mt-1 text-xs text-red-500">
-              {errors.password}
-            </p>
+            <p className="mt-1 text-xs text-red-500">{errors.password}</p>
           )}
         </div>
 
@@ -179,7 +157,6 @@ export default function LoginPage() {
         </button>
       </form>
 
-      {/* Demo credentials */}
       <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">
         <strong>Demo:</strong> admin@campusconnect.com / Admin@12345
       </div>

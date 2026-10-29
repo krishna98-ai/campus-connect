@@ -104,4 +104,25 @@ const sendWelcomeEmail = async (email, name) => {
   });
 };
 
-export { sendEmail, sendPasswordResetEmail, sendWelcomeEmail };
+const sendSignupOtpEmail = async (email, name, otp) => {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 24px;">
+      <h2>Verify your Campus Connect email</h2>
+      <p>Hi ${name},</p>
+      <p>Use this OTP to complete your signup. It expires in 10 minutes.</p>
+      <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 16px 0;">
+        ${otp}
+      </div>
+      <p>If you didn't request this, you can ignore this email.</p>
+    </div>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: "Campus Connect - Email Verification OTP",
+    html,
+    text: `Hi ${name}, your Campus Connect signup OTP is ${otp}. It expires in 10 minutes.`,
+  });
+};
+
+export { sendEmail, sendPasswordResetEmail, sendWelcomeEmail,sendSignupOtpEmail };

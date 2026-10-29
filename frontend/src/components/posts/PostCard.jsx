@@ -40,6 +40,9 @@ export default function PostCard({ post, onUpdate }) {
   const [commentLoading, setCommentLoading] = useState(false);
 
   const [comments, setComments] = useState(post.comments || []);
+  const [replyTo, setReplyTo] = useState(null);
+  const [replyText, setReplyText] = useState("");
+  const [replyLoading, setReplyLoading] = useState(false);
 
   const isOwner = post.author?._id === user?._id || post.author === user?._id;
 
@@ -131,6 +134,46 @@ export default function PostCard({ post, onUpdate }) {
     toast.success("Link copied!");
   };
 
+  // Add reply to a comment
+  const handleReply = async (event, commentId) => {
+    event.preventDefault();
+
+    if (!replyText.trim() || replyLoading) return;
+
+    setReplyLoading(true);
+
+    try {
+      const response = await api.post(
+        `/posts/${post._id}/comments/${commentId}/replies`,
+        { text: replyText.trim() },
+      );
+
+      const updatedComment = response.data.comment;
+
+      setComments((previousComments) =>
+        previousComments.map((comment) =>
+          comment._id === commentId ? updatedComment : comment,
+        ),
+      );
+
+      setReplyText("");
+      setReplyTo(null);
+      toast.success("Reply added");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to add reply");
+    } finally {
+      setReplyLoading(false);
+    }
+  };
+  // Handle Report 
+  const handleReport = async () => {
+    try {
+      await api.patch(`/posts/${post._id}/report`);
+      toast.success("Post reported successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to report post");
+    }
+  };
   return (
     <article className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
       {/* Header */}
@@ -210,6 +253,7 @@ export default function PostCard({ post, onUpdate }) {
                 ) : (
                   <button
                     type="button"
+                    onClick={handleReport}
                     className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
                   >
                     <Flag className="h-4 w-4" />
@@ -330,20 +374,74 @@ export default function PostCard({ post, onUpdate }) {
         <div className="space-y-3 border-t border-slate-100 px-4 pb-4 pt-3 dark:border-slate-700 sm:px-5">
           {/* Last 3 comments */}
           {comments.slice(-3).map((comment) => (
-            <div key={comment._id} className="flex gap-2.5">
-              <Avatar user={comment.user} size="xs" />
+            <div key={comment._id} className="space-y-2">
+              <div className="flex gap-2.5">
+                <Avatar user={comment.user} size="xs" />
 
-              <div className="min-w-0 flex-1 rounded-lg bg-slate-50 px-3 py-2.5 dark:bg-slate-900/50">
-                <div className="flex flex-wrap items-baseline gap-2">
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    {comment.user?.name}
-                  </span>
+                <div className="min-w-0 flex-1">
+                  <div className="rounded-lg bg-slate-50 px-3 py-2.5 dark:bg-slate-900/50">
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      {comment.user?.name}
+                    </p>
 
-                  <span className="break-words text-xs text-slate-600 dark:text-slate-400">
-                    {comment.text}
-                  </span>
+                    <p className="mt-1 break-words text-sm text-slate-700 dark:text-slate-300">
+                      {comment.text}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReplyTo(replyTo === comment._id ? null : comment._id);
+                      setReplyText("");
+                    }}
+                    className="ml-2 mt-1 text-xs font-semibold text-primary-600 hover:underline dark:text-primary-400"
+                  >
+                    {replyTo === comment._id ? "Cancel reply" : "Reply"}
+                  </button>
                 </div>
               </div>
+
+              {/* Existing replies */}
+              {comment.replies?.map((reply) => (
+                <div key={reply._id} className="ml-8 flex gap-2">
+                  <Avatar user={reply.user} size="xs" />
+
+                  <div className="min-w-0 flex-1 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-900/50">
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      {reply.user?.name}
+                    </p>
+
+                    <p className="mt-1 break-words text-xs text-slate-600 dark:text-slate-400">
+                      {reply.text}
+                    </p>
+                  </div>
+                </div>
+              ))}
+
+              {/* Reply form */}
+              {replyTo === comment._id && (
+                <form
+                  onSubmit={(event) => handleReply(event, comment._id)}
+                  className="ml-8 flex items-center gap-2"
+                >
+                  <input
+                    type="text"
+                    value={replyText}
+                    onChange={(event) => setReplyText(event.target.value)}
+                    placeholder="Write a reply..."
+                    className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 outline-none focus:border-primary-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={replyLoading || !replyText.trim()}
+                    className="h-9 rounded-lg bg-primary-600 px-3 text-xs font-medium text-white disabled:opacity-40"
+                  >
+                    {replyLoading ? "..." : "Send"}
+                  </button>
+                </form>
+              )}
             </div>
           ))}
 

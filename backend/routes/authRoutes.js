@@ -5,6 +5,7 @@ import { uploadAvatar } from "../config/cloudinary.js";
 
 import {
   signup,
+  verifySignupOtp,
   login,
   logout,
   getMe,
@@ -17,6 +18,7 @@ import {
 const router = express.Router();
 
 router.post("/signup", signup);
+router.post("/verify-otp", verifySignupOtp);
 router.post("/login", login);
 router.post("/logout", protect, logout);
 router.get("/me", protect, getMe);

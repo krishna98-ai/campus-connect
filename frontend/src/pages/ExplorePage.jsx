@@ -43,11 +43,9 @@ export default function ExplorePage() {
         const [postsRes, notesRes, usersRes] = await Promise.all([
           api.get("/posts", { params }),
           api.get("/notes", { params }),
-          debouncedQuery
-            ? api.get("/users/search", {
-                params: { q: debouncedQuery },
-              })
-            : Promise.resolve({ data: { users: [] } }),
+          api.get("/users/search", {
+            params: debouncedQuery ? { q: debouncedQuery } : {},
+          }),
         ]);
 
         setResults({

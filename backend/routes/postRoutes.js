@@ -15,6 +15,7 @@ import {
   addReply,
   getTrendingPosts,
   toggleSavePost,
+  reportPost
 } from "../controllers/postController.js";
 
 const router = express.Router();
@@ -30,5 +31,5 @@ router.put("/:id/save", protect, toggleSavePost);
 router.post("/:id/comments", protect, addComment);
 router.delete("/:id/comments/:commentId", protect, deleteComment);
 router.post("/:id/comments/:commentId/replies", protect, addReply);
-
+router.patch("/:id/report", protect, reportPost);
 export default router;

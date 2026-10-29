@@ -11,7 +11,6 @@ import {
 } from "../controllers/userController.js";
 
 const router = express.Router();
-
 router.get("/search", searchUsers);
 router.get("/suggestions", protect, getSuggestedUsers);
 router.get("/saved-posts", protect, getSavedPosts);

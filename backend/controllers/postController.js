@@ -1,7 +1,7 @@
 import Post from "../models/Post.js";
 import User from "../models/User.js";
 import Notification from "../models/Notification.js";
-import {cloudinary} from "../config/cloudinary.js"
+import { cloudinary } from "../config/cloudinary.js";
 
 import {
   sendSuccess,
@@ -157,7 +157,6 @@ export const deletePost = async (req, res, next) => {
 
     // Delete images from cloudinary
     if (post.images && post.images.length > 0) {
-      
       await Promise.all(
         post.images.map((img) => cloudinary.uploader.destroy(img.public_id)),
       );
@@ -366,6 +365,34 @@ export const toggleSavePost = async (req, res, next) => {
     sendSuccess(res, 200, isSaved ? "Post unsaved" : "Post saved", {
       saved: !isSaved,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc Report post 
+// @route PATCH /api/posts/:id/report
+// @ access Private
+export const reportPost = async (req, res, next) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return next(createError("Post not found", 404));
+    }
+
+    const userId = req.user.id;
+
+    if (post.reportedBy.some((id) => id.toString() === userId.toString())) {
+      return next(createError("You have already reported this post", 400));
+    }
+
+    post.reportedBy.push(userId);
+    post.isReported = true;
+
+    await post.save();
+
+    return sendSuccess(res, 200, "Post reported successfully");
   } catch (error) {
     next(error);
   }

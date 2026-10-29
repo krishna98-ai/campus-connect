@@ -23,6 +23,7 @@ import ChatPage from '../pages/ChatPage';
 import NotificationsPage from '../pages/NotificationsPage';
 import SettingsPage from '../pages/SettingsPage';
 import SavedPostsPage from '../pages/SavedPostsPage';
+import VerifyOtpPage from "../pages/auth/VerifyOtpPage";
 
 // Pages - Admin
 import AdminDashboard from '../pages/admin/AdminDashboard';
@@ -54,14 +55,57 @@ export default function AppRoutes() {
     <Routes>
       {/* Auth routes */}
       <Route element={<AuthLayout />}>
-        <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
-        <Route path="/signup" element={<GuestRoute><SignupPage /></GuestRoute>} />
-        <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
-        <Route path="/reset-password/:token" element={<GuestRoute><ResetPasswordPage /></GuestRoute>} />
+        <Route
+          path="/login"
+          element={
+            <GuestRoute>
+              <LoginPage />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <GuestRoute>
+              <SignupPage />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <GuestRoute>
+              <ForgotPasswordPage />
+            </GuestRoute>
+          }
+        />
+        <Route path="/verify-otp" element={<VerifyOtpPage />} />
+        <Route
+          path="/reset-password/:token"
+          element={
+            <GuestRoute>
+              <ResetPasswordPage />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/verify-otp"
+          element={
+            <GuestRoute>
+              <VerifyOtpPage />
+            </GuestRoute>
+          }
+        />
       </Route>
 
       {/* Main app routes */}
-      <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+      <Route
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<FeedPage />} />
         <Route path="/explore" element={<ExplorePage />} />
         <Route path="/notes" element={<NotesPage />} />
@@ -76,7 +120,13 @@ export default function AppRoutes() {
       </Route>
 
       {/* Admin routes */}
-      <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
+      <Route
+        element={
+          <AdminRoute>
+            <AdminLayout />
+          </AdminRoute>
+        }
+      >
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="/admin/reported" element={<AdminReported />} />

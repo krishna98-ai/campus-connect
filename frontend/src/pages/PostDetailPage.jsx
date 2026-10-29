@@ -1,12 +1,27 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { ArrowLeft, Send, Loader2, Heart, Trash2, CornerDownRight } from 'lucide-react';
-import api from '../api/axiosInstance';
-import Avatar from '../components/common/Avatar';
-import { PostSkeleton } from '../components/common/Skeletons';
-import { formatRelative } from '../utils/helpers';
-import toast from 'react-hot-toast';
+import { useEffect, useState } from "react";
+import {
+  useParams,
+  useNavigate,
+  Link,
+  useSearchParams,
+} from "react-router-dom";
+import { useSelector } from "react-redux";
+import {
+  ArrowLeft,
+  Send,
+  Loader2,
+  Heart,
+  Trash2,
+  CornerDownRight,
+  Pencil,
+  X,
+  Save,
+} from "lucide-react";
+import api from "../api/axiosInstance";
+import Avatar from "../components/common/Avatar";
+import { PostSkeleton } from "../components/common/Skeletons";
+import { formatRelative } from "../utils/helpers";
+import toast from "react-hot-toast";
 
 export default function PostDetailPage() {
   const { id } = useParams();
@@ -14,22 +29,32 @@ export default function PostDetailPage() {
   const { user } = useSelector((s) => s.auth);
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [commentText, setCommentText] = useState('');
-  const [replyText, setReplyText] = useState('');
+  const [commentText, setCommentText] = useState("");
+  const [replyText, setReplyText] = useState("");
   const [replyTo, setReplyTo] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isEditing = searchParams.get("edit") === "1";
+
+  const [editContent, setEditContent] = useState("");
+  const [editCategory, setEditCategory] = useState("General");
+  const [editTags, setEditTags] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
 
   useEffect(() => {
     const fetch = async () => {
       try {
         const res = await api.get(`/posts/${id}`);
         setPost(res.data.post);
+        setEditContent(res.data.post.content || "");
+        setEditCategory(res.data.post.category || "General");
+        setEditTags((res.data.post.tags || []).join(", "));
         setLikeCount(res.data.post.likes?.length || 0);
         setLiked(res.data.post.likes?.includes(user?._id));
       } catch {
-        toast.error('Post not found');
+        toast.error("Post not found");
         navigate(-1);
       }
       setLoading(false);
@@ -37,6 +62,46 @@ export default function PostDetailPage() {
     fetch();
   }, [id]);
 
+  const handleCancelEdit = () => {
+    setEditContent(post.content || "");
+    setEditCategory(post.category || "General");
+    setEditTags((post.tags || []).join(", "));
+    setSearchParams({}, { replace: true });
+  };
+
+  const handleUpdatePost = async (e) => {
+    e.preventDefault();
+
+    if (!editContent.trim()) {
+      toast.error("Post content cannot be empty");
+      return;
+    }
+
+    setEditLoading(true);
+
+    try {
+      const res = await api.put(`/posts/${id}`, {
+        content: editContent.trim(),
+        category: editCategory,
+        tags: editTags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      });
+
+      setPost(res.data.post);
+      setEditContent(res.data.post.content || "");
+      setEditCategory(res.data.post.category || "General");
+      setEditTags((res.data.post.tags || []).join(", "));
+
+      setSearchParams({}, { replace: true });
+      toast.success("Post updated successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update post");
+    } finally {
+      setEditLoading(false);
+    }
+  };
   const handleLike = async () => {
     const prev = liked;
     setLiked(!liked);
@@ -54,11 +119,13 @@ export default function PostDetailPage() {
     if (!commentText.trim()) return;
     setSubmitting(true);
     try {
-      const res = await api.post(`/posts/${id}/comments`, { text: commentText });
+      const res = await api.post(`/posts/${id}/comments`, {
+        text: commentText,
+      });
       setPost((p) => ({ ...p, comments: [...p.comments, res.data.comment] }));
-      setCommentText('');
+      setCommentText("");
     } catch {
-      toast.error('Failed to post comment');
+      toast.error("Failed to post comment");
     }
     setSubmitting(false);
   };
@@ -67,30 +134,42 @@ export default function PostDetailPage() {
     if (!replyText.trim()) return;
     setSubmitting(true);
     try {
-      const res = await api.post(`/posts/${id}/comments/${commentId}/replies`, { text: replyText });
+      const res = await api.post(`/posts/${id}/comments/${commentId}/replies`, {
+        text: replyText,
+      });
       setPost((p) => ({
         ...p,
-        comments: p.comments.map((c) => (c._id === commentId ? res.data.comment : c)),
+        comments: p.comments.map((c) =>
+          c._id === commentId ? res.data.comment : c,
+        ),
       }));
-      setReplyText('');
+      setReplyText("");
       setReplyTo(null);
     } catch {
-      toast.error('Failed to post reply');
+      toast.error("Failed to post reply");
     }
     setSubmitting(false);
   };
 
   const handleDeleteComment = async (commentId) => {
-    if (!window.confirm('Delete comment?')) return;
+    if (!window.confirm("Delete comment?")) return;
     try {
       await api.delete(`/posts/${id}/comments/${commentId}`);
-      setPost((p) => ({ ...p, comments: p.comments.filter((c) => c._id !== commentId) }));
+      setPost((p) => ({
+        ...p,
+        comments: p.comments.filter((c) => c._id !== commentId),
+      }));
     } catch {
-      toast.error('Failed to delete comment');
+      toast.error("Failed to delete comment");
     }
   };
 
-  if (loading) return <div className="space-y-4"><PostSkeleton /></div>;
+  if (loading)
+    return (
+      <div className="space-y-4">
+        <PostSkeleton />
+      </div>
+    );
   if (!post) return null;
 
   return (
@@ -106,43 +185,169 @@ export default function PostDetailPage() {
             <Avatar user={post.author} size="md" />
           </Link>
           <div>
-            <Link to={`/profile/${post.author?.username}`} className="font-bold text-slate-900 dark:text-white hover:text-primary-600">{post.author?.name}</Link>
+            <Link
+              to={`/profile/${post.author?.username}`}
+              className="font-bold text-slate-900 dark:text-white hover:text-primary-600"
+            >
+              {post.author?.name}
+            </Link>
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <span>@{post.author?.username}</span>
               <span>·</span>
               <span>{formatRelative(post.createdAt)}</span>
-              {post.isEdited && <><span>·</span><span className="italic">edited</span></>}
+              {post.isEdited && (
+                <>
+                  <span>·</span>
+                  <span className="italic">edited</span>
+                </>
+              )}
             </div>
           </div>
         </div>
 
-        {post.category !== 'General' && (
-          <span className="badge bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400">{post.category}</span>
+        {post.category !== "General" && (
+          <span className="badge bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400">
+            {post.category}
+          </span>
         )}
 
-        <p className="text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+        <p className="text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">
+          {post.content}
+        </p>
+
+        {isEditing &&
+        (post.author?._id === user?._id || user?.role === "admin") ? (
+          <form onSubmit={handleUpdatePost} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Post content
+              </label>
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                rows={5}
+                maxLength={5000}
+                required
+                className="input-field w-full resize-y"
+                placeholder="What's on your mind?"
+              />
+              <p className="mt-1 text-right text-xs text-slate-400">
+                {editContent.length}/5000
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Category
+              </label>
+              <select
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                className="input-field w-full"
+              >
+                {[
+                  "General",
+                  "Discussion",
+                  "Question",
+                  "Announcement",
+                  "Achievement",
+                ].map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Tags
+              </label>
+              <input
+                value={editTags}
+                onChange={(e) => setEditTags(e.target.value)}
+                className="input-field w-full"
+                placeholder="react, javascript, college"
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Separate tags with commas.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                disabled={editLoading}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <X className="h-4 w-4" />
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                disabled={editLoading || !editContent.trim()}
+                className="btn-primary flex items-center gap-2"
+              >
+                {editLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Save changes
+              </button>
+            </div>
+          </form>
+        ) : (
+          <p className="whitespace-pre-wrap leading-relaxed text-slate-800 dark:text-slate-200">
+            {post.content}
+          </p>
+        )}
 
         {post.images?.length > 0 && (
-          <div className={`grid gap-2 ${post.images.length > 1 ? 'grid-cols-2' : ''}`}>
+          <div
+            className={`grid gap-2 ${post.images.length > 1 ? "grid-cols-2" : ""}`}
+          >
             {post.images.map((img, i) => (
-              <img key={i} src={img.url} alt="" className="rounded-xl object-cover w-full max-h-96 cursor-pointer" onClick={() => window.open(img.url, '_blank')} />
+              <img
+                key={i}
+                src={img.url}
+                alt=""
+                className="rounded-xl object-cover w-full max-h-96 cursor-pointer"
+                onClick={() => window.open(img.url, "_blank")}
+              />
             ))}
           </div>
         )}
 
         {post.tags?.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {post.tags.map((t) => <span key={t} className="text-xs font-medium text-primary-600 dark:text-primary-400">#{t}</span>)}
+            {post.tags.map((t) => (
+              <span
+                key={t}
+                className="text-xs font-medium text-primary-600 dark:text-primary-400"
+              >
+                #{t}
+              </span>
+            ))}
           </div>
         )}
 
         <div className="flex items-center gap-4 pt-3 border-t border-slate-100 dark:border-slate-700">
-          <button onClick={handleLike} className={`flex items-center gap-2 text-sm font-medium transition-colors ${liked ? 'text-red-500' : 'text-slate-500 hover:text-red-500'}`}>
-            <Heart className={`w-5 h-5 ${liked ? 'fill-current' : ''}`} />
-            {likeCount} {likeCount === 1 ? 'like' : 'likes'}
+          <button
+            onClick={handleLike}
+            className={`flex items-center gap-2 text-sm font-medium transition-colors ${liked ? "text-red-500" : "text-slate-500 hover:text-red-500"}`}
+          >
+            <Heart className={`w-5 h-5 ${liked ? "fill-current" : ""}`} />
+            {likeCount} {likeCount === 1 ? "like" : "likes"}
           </button>
-          <span className="text-sm text-slate-400">{post.comments?.length} comments</span>
-          <span className="text-sm text-slate-400 ml-auto">{post.views} views</span>
+          <span className="text-sm text-slate-400">
+            {post.comments?.length} comments
+          </span>
+          <span className="text-sm text-slate-400 ml-auto">
+            {post.views} views
+          </span>
         </div>
       </div>
 
@@ -158,8 +363,16 @@ export default function PostDetailPage() {
               placeholder="Write a comment..."
               className="input-field flex-1"
             />
-            <button type="submit" disabled={submitting || !commentText.trim()} className="btn-primary px-3">
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            <button
+              type="submit"
+              disabled={submitting || !commentText.trim()}
+              className="btn-primary px-3"
+            >
+              {submitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
             </button>
           </div>
         </form>
@@ -175,17 +388,27 @@ export default function PostDetailPage() {
               </Link>
               <div className="flex-1 bg-slate-50 dark:bg-slate-700 rounded-xl p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{comment.user?.name}</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                    {comment.user?.name}
+                  </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400">{formatRelative(comment.createdAt)}</span>
-                    {(comment.user?._id === user?._id || post.author?._id === user?._id) && (
-                      <button onClick={() => handleDeleteComment(comment._id)} className="text-red-400 hover:text-red-600 transition-colors">
+                    <span className="text-xs text-slate-400">
+                      {formatRelative(comment.createdAt)}
+                    </span>
+                    {(comment.user?._id === user?._id ||
+                      post.author?._id === user?._id) && (
+                      <button
+                        onClick={() => handleDeleteComment(comment._id)}
+                        className="text-red-400 hover:text-red-600 transition-colors"
+                      >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
                 </div>
-                <p className="text-sm text-slate-700 dark:text-slate-300">{comment.text}</p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  {comment.text}
+                </p>
               </div>
             </div>
 
@@ -196,21 +419,38 @@ export default function PostDetailPage() {
                 <Avatar user={reply.user} size="xs" />
                 <div className="flex-1 bg-slate-50 dark:bg-slate-700 rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{reply.user?.name}</span>
-                    <span className="text-xs text-slate-400">{formatRelative(reply.createdAt)}</span>
+                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      {reply.user?.name}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {formatRelative(reply.createdAt)}
+                    </span>
                   </div>
-                  <p className="text-xs text-slate-700 dark:text-slate-300">{reply.text}</p>
+                  <p className="text-xs text-slate-700 dark:text-slate-300">
+                    {reply.text}
+                  </p>
                 </div>
               </div>
             ))}
 
             {/* Reply toggle */}
-            <button onClick={() => setReplyTo(replyTo === comment._id ? null : comment._id)} className="ml-8 text-xs text-primary-600 hover:underline font-medium">
+            <button
+              onClick={() =>
+                setReplyTo(replyTo === comment._id ? null : comment._id)
+              }
+              className="ml-8 text-xs text-primary-600 hover:underline font-medium"
+            >
               Reply
             </button>
 
             {replyTo === comment._id && (
-              <div className="ml-8 flex gap-2">
+              <form
+                className="ml-8 flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleReply(comment._id);
+                }}
+              >
                 <input
                   type="text"
                   value={replyText}
@@ -219,11 +459,27 @@ export default function PostDetailPage() {
                   className="input-field flex-1 text-xs py-2"
                   autoFocus
                 />
-                <button onClick={() => handleReply(comment._id)} disabled={submitting || !replyText.trim()} className="btn-primary px-3 py-2 text-xs">
-                  {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+
+                <button
+                  type="submit"
+                  disabled={submitting || !replyText.trim()}
+                  className="btn-primary px-3 py-2 text-xs"
+                >
+                  {submitting ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Send className="w-3 h-3" />
+                  )}
                 </button>
-                <button onClick={() => setReplyTo(null)} className="btn-secondary px-2 py-2 text-xs">✕</button>
-              </div>
+
+                <button
+                  type="button"
+                  onClick={() => setReplyTo(null)}
+                  className="btn-secondary px-2 py-2 text-xs"
+                >
+                  ✕
+                </button>
+              </form>
             )}
           </div>
         ))}
