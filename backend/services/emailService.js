@@ -1,3 +1,4 @@
+import { log } from "console";
 import nodemailer from "nodemailer";
 
 const createTransporter = () => {
@@ -13,6 +14,8 @@ const createTransporter = () => {
 };
 
 const sendEmail = async ({ to, subject, html, text }) => {
+  console.log("email bhjne vala function chl rha ab ");
+  
   const transporter = createTransporter();
 
   const mailOptions = {

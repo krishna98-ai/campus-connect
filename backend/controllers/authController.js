@@ -43,10 +43,10 @@ if (existingEmail) {
   const otp = existingEmail.getEmailVerificationToken();
 
   await existingEmail.save({ validateBeforeSave: false });
-onsole.log("2. User saved");
+console.log("2. User saved");
 
+console.log("3. Sending OTP email");
   try {
-    console.log("3. Sending OTP email");
     await sendSignupOtpEmail(
       existingEmail.email,
       existingEmail.name,
