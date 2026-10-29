@@ -13,22 +13,79 @@ const createTransporter = () => {
   });
 };
 
-const sendEmail = async ({ to, subject, html, text }) => {
-  console.log("email bhjne vala function chl rha ab ");
+// const sendEmail = async ({ to, subject, html, text }) => {
+//   console.log("email bhjne vala function chl rha ab ");
   
+//   const transporter = createTransporter();
+
+//   const mailOptions = {
+//     from: `"${process.env.FROM_NAME || "Campus Connect"}" <${process.env.FROM_EMAIL}>`,
+//     to,
+//     subject,
+//     html,
+//     text,
+//   };
+
+//   return await transporter.sendMail(mailOptions);
+// };
+const sendEmail = async ({ to, subject, html, text }) => {
+  console.log("[EMAIL 1] sendEmail called");
+  console.log("[EMAIL 2] Config check:", {
+    SMTP_HOST: process.env.SMTP_HOST || "MISSING",
+    SMTP_PORT: process.env.SMTP_PORT || "MISSING",
+    SMTP_EMAIL_EXISTS: Boolean(process.env.SMTP_EMAIL),
+    SMTP_PASSWORD_EXISTS: Boolean(process.env.SMTP_PASSWORD),
+    FROM_EMAIL_EXISTS: Boolean(process.env.FROM_EMAIL),
+    recipientExists: Boolean(to),
+    subject,
+  });
+
   const transporter = createTransporter();
 
-  const mailOptions = {
-    from: `"${process.env.FROM_NAME || "Campus Connect"}" <${process.env.FROM_EMAIL}>`,
-    to,
-    subject,
-    html,
-    text,
-  };
+  try {
+    console.log("[EMAIL 3] Verifying SMTP connection...");
+    await transporter.verify();
+    console.log("[EMAIL 4] SMTP verification successful");
+  } catch (error) {
+    console.error("[EMAIL VERIFY FAILED]", {
+      code: error.code,
+      command: error.command,
+      message: error.message,
+    });
+    throw error;
+  }
 
-  return await transporter.sendMail(mailOptions);
+  try {
+    console.log("[EMAIL 5] Calling sendMail...");
+
+    const info = await transporter.sendMail({
+      from: `"${process.env.FROM_NAME || "Campus Connect"}" <${process.env.FROM_EMAIL}>`,
+      to,
+      subject,
+      html,
+      text,
+    });
+
+    console.log("[EMAIL 6] sendMail completed:", {
+      messageId: info.messageId,
+      acceptedCount: info.accepted?.length,
+      rejectedCount: info.rejected?.length,
+      response: info.response,
+    });
+
+    return info;
+  } catch (error) {
+    console.error("[EMAIL SEND FAILED]", {
+      code: error.code,
+      command: error.command,
+      message: error.message,
+      responseCode: error.responseCode,
+      response: error.response,
+    });
+
+    throw error;
+  }
 };
-
 const sendPasswordResetEmail = async (email, name, resetUrl) => {
   const html = `
     <!DOCTYPE html>
