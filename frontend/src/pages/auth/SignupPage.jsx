@@ -81,15 +81,8 @@ export default function SignupPage() {
     );
 
     if (signupUser.fulfilled.match(result)) {
-      const email = result.payload.email;
-
-      toast.success(
-        result.payload.message || "Verification code sent to your email!",
-      );
-
-      navigate("/verify-otp", {
-        state: { email },
-      });
+      toast.success("Account created successfully. Please login.");
+      navigate("/login");
     } else {
       toast.error(result.payload || "Signup failed");
     }

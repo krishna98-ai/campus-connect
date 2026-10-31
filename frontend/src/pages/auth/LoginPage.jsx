@@ -59,16 +59,6 @@ export default function LoginPage() {
     }
 
     const errorMessage = String(result.payload || "Login failed");
-
-    if (errorMessage.toLowerCase().includes("verify your email")) {
-      toast.error("Please verify your email to continue.");
-
-      navigate("/verify-otp", {
-        state: { email: credentials.email },
-      });
-      return;
-    }
-
     toast.error(errorMessage);
   };
 
